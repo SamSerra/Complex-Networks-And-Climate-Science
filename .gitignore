@@ -1,6 +1,6 @@
-Code/**
-Grants/**
-Output/**
-.pyc
-__pycache__/**
-.ipynb_checkpoints/**
+Data/
+Grants/
+Output/
+**.pyc
+__pycache__/
+**/.ipynb_checkpoints/
