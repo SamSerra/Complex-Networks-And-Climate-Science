@@ -1,0 +1,10 @@
+Useful page with lots of data: https://www.esrl.noaa.gov/psd/data/climateindices/list/
+-----------------------
+
+soi.txt: Southern Occillation Index from 1948-2020. From https://www.cpc.ncep.noaa.gov/data/indices/soi
+
+oni.ascii.txt: Oceanic Nino Index from 1950-present. From https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt
+
+NCEP-NCAR REanalysis (R1): Monthly averaged Surface Air Temmperature (SAT) from 1948-present. From 
+
+detrend.nino34.ascii.txt: Monthly averaged Nino 3.4 Index from 1950-present. From https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/detrend.nino34.ascii.txt
