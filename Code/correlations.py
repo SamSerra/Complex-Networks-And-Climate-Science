@@ -10,6 +10,8 @@ from scipy.stats import pearsonr
 import sys
 import time
 import utilities as utils
+import dask
+import os
 
 root_dir = '/home/samserra/Projects/ComplexNetworksAndClimateScience'
 file_name = input("Filename to write to in 'Output' Directory: \n")
@@ -114,6 +116,14 @@ dates_elnino = dates_trimed[elnino_months]
 dates_lanina = dates_trimed[lanina_months]
 dates_normal = dates_trimed[normal_months]
 
+# make all objects delayed
+air_anom_elnino = dask.delayed(air_anom_elnino)
+air_anom_lanina = dask.delayed(air_anom_lanina)
+air_anom_normal = dask.delayed(air_anom_normal)
+dates_elnino    = dask.delayed(dates_elnino)
+dates_lanina    = dask.delayed(dates_lanina)
+dates_normal    = dask.delayed(dates_normal)
+
 
 #####################################
 ## 5. Correlations!
@@ -153,30 +163,58 @@ except FileNotFoundError:
 indicies = [(lat_idx, lon_idx) for lat_idx in np.arange(1, len(lats)-1)
             for lon_idx in np.arange(len(lons))]
 
+indicies = dask.delayed(indicies)
 
 ## subroutines for computing correlations/adj matricies to avoid large memory usage
-def calc_correlations(SATdata_array, output_array):
+
+#need to parallize with dask
+def calc_correlations(SATdata_array):#, output_array):
     '''
-    Takes in data_array, calculates correlations and writes to output_array (ideally a reference to a netcdf variable)
+    Takes in SAT air data, calculates pairwise pearson correlations for the upper triangle, and saves temp file to disk.
+
+    Will update to be delayed. The output will be a python list which I will need to reshape using a different function. The list will be temporarily stored on disk to avoid memory overflow (shouldn't be an issue with file size)
     '''
     
+    @dask.delayed
+    def newpearson(*args):
+        c, _ = pearsonr(args)
+        return c
+    
     # create matrix for storing computations in memory before writing them to netcdf file
-    temp_data_array = np.zeros((N, N))
+    temp_data_array = []#np.zeros((N, N))
 
     count = 0
     prev_time = time.time()
+    print('Creating delayed list')
     for i in np.arange(N):
         for j in np.arange(i+1):
             i_lat, i_lon = indicies[i][0], indicies[i][1]
             j_lat, j_lon = indicies[j][0], indicies[j][1]
-            temp_data_array[i, j], _ = pearsonr(
-                SATdata_array[:, i_lat, i_lon], SATdata_array[:, j_lat, j_lon])
-
+            temp_data_array.append(newpearson(SATdata_array[:, i_lat, i_lon], SATdata_array[:, j_lat, j_lon]))
+            
             # ETA bar: update every 100,000 iterations
             count += 1
             if count % 100000 == 0:
-                prev_time = utils.eta_counter(N*(N-1)*.5, count, prev_time, every=100000, system=True)
-                
+                prev_time = utils.eta_counter(N*(N-1)*.5, count, prev_time, every=100000, system=False)
+            
+    print('Finished delayed list. Computing...')
+    # save list to disk
+    temp_data_array = dask.compute(temp_data_array)
+    print('Finished computing. Saving...')
+    np.save(root_dir + '/Output/' + file_name + '-temp', temp_data_array)
+    print('Done saving.')
+    
+def list_to_array(output_array):
+    '''
+    Reads list from disk, converts to uppper triangular array, symmetrizes it, and deletes the list from disk.
+    '''
+    temp_list = np.load(root_dir + file_name + '-temp.npy')
+
+    # set UT of temp_array to list
+    temp_array = np.zeros((N,N))
+    indices_ut = np.triu_indicies(N)
+    temp_array[indices_ut] = temp_list
+    
     # symmetrize matrix 
     temp_data_array[:,:] = (np.transpose(temp_data_array) + temp_data_array)
     
@@ -184,9 +222,15 @@ def calc_correlations(SATdata_array, output_array):
     for i in np.arange(N):
         temp_data_array[i,i] /= 2
         
-    # save temp_data_array to output_array
+     # save temp_data_array to output_array
     output_array[:,:] = temp_data_array
 
+    # delete temp list from disk
+    try:
+        os.remove(root_dir + file_name + '-temp.npy')
+    except:
+        print('Cannot delete temporary list file')
+        
 def calc_adj_matrix(corr_array_ref, output_array, sig=.5):
     '''
     corr_array_ref is a reference to a netcdf variable
@@ -194,17 +238,19 @@ def calc_adj_matrix(corr_array_ref, output_array, sig=.5):
     cors = corr_array_ref[:,:]
     output_array[:,:] = (np.abs(cors) > sig).astype('int')
     
-    
-# SAT correlations
-print("\n Correlations for El Nino \n")
-calc_correlations(air_anom_elnino, cors_elnino)
-print("\n Correlations for La Nina \n")
-calc_correlations(air_anom_lanina, cors_lanina)
 
-# make adj matricies
-print("\n Adjacency for El Nino")
+# correlations, make array, then calc adjacency matricies
+
+#elnino
+calc_correlations(air_anom_elnino)
+list_to_array(cors_elnino)
 calc_adj_matrix(cors_elnino, adj_elnino)
-print("Adjacency for La Nina")
+
+#lanina
+'''
+calc_correlations(air_anom_lanina)
+list_to_array(cors_lanina)
 calc_adj_matrix(cors_lanina, adj_lanina)
+'''
 
 reanalysis.close()
