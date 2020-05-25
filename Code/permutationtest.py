@@ -1,7 +1,6 @@
 '''
 This file is used for calculating correlations. It's bascially just a copy-paste of the first 6 sections from the 'Recreating Tsonis et Al' notebooks. 
 
-Fix elnino def 
 '''
 
 from netCDF4 import Dataset
