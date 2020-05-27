@@ -2,6 +2,7 @@
 This file is used for calculating correlations. It's bascially just a copy-paste of the first 6 sections from the 'Recreating Tsonis et Al' notebooks. 
 
 Fix elnino def 
+Before that, I want to try using all months and see what happens
 '''
 
 from netCDF4 import Dataset
@@ -32,7 +33,7 @@ dates_orig = np.array(
 
 # Tsonis et al only uses data from Nov-Mar to avoid seasonal variability. However, Donges et al does not, claiming it does not affect their results.
 # If the bool 'nov_to_march' is 'True',only data from Nov-Mar will be used. Else all data will be used
-nov_to_march = True
+nov_to_march = False
 if nov_to_march:
     # create mask for nov-march date range
     mask = []
@@ -42,7 +43,8 @@ if nov_to_march:
     air = reanalysis.variables['air'][mask, :, :]
     dates = dates_orig[mask]
 else:
-    air = reanalysis.variables['air'][:]
+    air = reanalysis.variables['air'][:,:,:]
+    dates = dates_orig
 
 #####################################
 ## 2. Produce Anomaly Values
@@ -52,6 +54,7 @@ valid_months = []
 for d in dates[:12]:
     valid_months.append(d.month)
 valid_months = set(valid_months)
+print('Valid months', valid_months)
 
 clim_averages = np.zeros(air.shape)
 for mon in valid_months:  # for each month,
@@ -73,14 +76,15 @@ soi = np.loadtxt(root_dir + "/Data/soi.txt", skiprows=88,
                  max_rows=70, usecols=np.arange(1, 13))
 # each column is a month jan-dec, so flatten to get 1-d list of all dates
 soi = np.ravel(soi)
-# last 10 months are nonsense, and reanalysis only goes to february, so chop last 11 months off
+# last 10 months are nonsense, and reanalysis only goes to jan, so chop last 11 months off
 soi = soi[:-11]
 # finaly, mask data to match previous filtering
-mask = []
-for d in dates_orig[3*12:]:
-    # true if d.month is Jan-Mar or Nov-Dec
-    mask.append((d.month <= 3) | (d.month >= 11))
-soi = soi[mask]
+if nov_to_march:
+    mask = []
+    for d in dates_orig[3*12:]:
+        # true if d.month is Jan-Mar or Nov-Dec
+        mask.append((d.month <= 3) | (d.month >= 11))
+    soi = soi[mask]
 
 # generate mask for El Nino months
 elnino_months = soi > 1
@@ -95,13 +99,13 @@ air_anom_trimed = air_anom[3*len(valid_months):, :, :]
 dates_trimed = dates[3*len(valid_months):]
 
 # subtract off 14 years of valid months plus Jan 2020 (second test)
-
+'''
 air_anom_trimed = air_anom_trimed[:-(14*len(valid_months)+1)]
 dates_trimed = dates_trimed[:-(14*len(valid_months)+1)]
 elnino_months = elnino_months[:-(14*len(valid_months)+1)]
 lanina_months = lanina_months[:-(14*len(valid_months)+1)]
 normal_months = normal_months[:-(14*len(valid_months)+1)]
-
+'''
 
 #####################################
 ## 4. Produce time series
