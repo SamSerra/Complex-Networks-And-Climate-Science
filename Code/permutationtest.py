@@ -1,6 +1,13 @@
 '''
-This file is used for calculating correlations. It's bascially just a copy-paste of the first 6 sections from the 'Recreating Tsonis et Al' notebooks. 
+This file will be used to conduct permutation tests for various network stats on El Nino/La Nina networks.
 
+TODO: 
+Updates def of el nino to nino34idx
+Update loop to run everything in memory
+Update i/o so writes to text file
+Add onion decomp/spectrum functions
+Add wasserstein distance functions
+Test!
 '''
 
 from netCDF4 import Dataset
@@ -26,6 +33,7 @@ lats = reanalysis.variables['lat'][:]
 times = reanalysis.variables['time'][:]
 
 # date format is hours since 1800-01-01, so convert to normal date format
+# note reanalysis runs from 1948-01-01 to 2020-01-01
 dates_orig = np.array(
     [dt.date(1800, 1, 1) + dt.timedelta(hours=t) for t in times])
 
@@ -66,7 +74,9 @@ for mon in valid_months:  # for each month,
 air_anom = air - clim_averages
 
 #####################################
-## 3. Classify years as El Nino or Not 
+## 3. Classify years as El Nino or Not
+# TODO change to Nino34idx
+# note: Nino34idx runs from 1950-01-01 to 2020-04-01
 
 soi = np.loadtxt(root_dir + "/Data/soi.txt", skiprows=88,
                  max_rows=70, usecols=np.arange(1, 13))
