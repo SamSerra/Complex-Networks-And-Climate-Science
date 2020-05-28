@@ -54,7 +54,6 @@ valid_months = []
 for d in dates[:12]:
     valid_months.append(d.month)
 valid_months = set(valid_months)
-print('Valid months', valid_months)
 
 clim_averages = np.zeros(air.shape)
 for mon in valid_months:  # for each month,
@@ -72,6 +71,28 @@ air_anom = air - clim_averages
 #####################################
 ## 3. Classify years as El Nino or Not 
 
+# nino34idx runs from 1950-01-01 to 2019-12-01
+# reanalysis runs from 1948-01-01 to 2020-01-01
+indicator = np.loadtxt('/home/samserra/Projects/ComplexNetworksAndClimateScience/Data/nino34idxDates.txt', dtype='int', skiprows=1, usecols=2)
+
+if nov_to_march:
+    mask = []
+    # cut off first 2 years and final month to match nino34idx
+    for d in dates_orig[2*12:-1]:
+        # true if d.month is Jan-Mar or Nov-Dec
+        mask.append((d.month <= 3) | (d.month >= 11))
+    indicator = indicator[mask]
+
+elnino_months = indicator == 1
+lanina_months = indicator == -1
+normal_months = indicator == 0
+
+
+# cut off first 2 years and jan 2020 to match nino34idx
+air_anom_trimed = air_anom[2*len(valid_months):-1, :, :]
+dates_trimed = dates[2*len(valid_months):-1]
+
+'''
 soi = np.loadtxt(root_dir + "/Data/soi.txt", skiprows=88,
                  max_rows=70, usecols=np.arange(1, 13))
 # each column is a month jan-dec, so flatten to get 1-d list of all dates
@@ -93,12 +114,9 @@ lanina_months = soi < -1
 # generate mask for normal months
 normal_months = (1-(elnino_months+lanina_months)
                  ).astype('bool')  # not(elnino or lanina)
+'''
 
-# cut off first 3 years of SAT data to match soi
-air_anom_trimed = air_anom[3*len(valid_months):, :, :]
-dates_trimed = dates[3*len(valid_months):]
-
-# subtract off 14 years of valid months plus Jan 2020 (second test)
+# subtract off 14 years of valid months plus Jan 2020 (to match tsonis)
 '''
 air_anom_trimed = air_anom_trimed[:-(14*len(valid_months)+1)]
 dates_trimed = dates_trimed[:-(14*len(valid_months)+1)]
